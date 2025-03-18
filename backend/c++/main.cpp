@@ -4,7 +4,7 @@
 
 const char* HOST = "localhost";
 const char* USER = "root";
-const char* PASSWORD = "";
+const char* PASSWORD = "root";
 const char* DATABASE = "pump_data";
 
 bool pumpRunningTooLong(MYSQL* conn) {
