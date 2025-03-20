@@ -50,11 +50,13 @@ void sendAlarmEmail() {
     if (curl) {
         const char* emailData = "Subject: Alerte Pompe\n\nLa pompe tourne depuis plus de 10 minutes.";
 
-        curl_easy_setopt(curl, CURLOPT_URL, "smtp://smtp.votreserveur.com");
+        curl_easy_setopt(curl, CURLOPT_URL, "smtp://smtp.gmail.com:465");
         curl_easy_setopt(curl, CURLOPT_MAIL_FROM, "projetpompehydraulique@gmail.com");
         
         struct curl_slist* recipients = nullptr;
-        recipients = curl_slist_append(recipients, "destinataire@exemple.com");
+        curl_easy_setopt(curl, CURLOPT_USERNAME, "projetpompehydraulique@gmail.com");
+        curl_easy_setopt(curl, CURLOPT_PASSWORD, "dhcbbyzgwqmxdiqv");
+        recipients = curl_slist_append(recipients, "thibaud.lauber67000@gmail.com");
         curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, emailData);
         curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);  // Sécurisation si nécessaire
@@ -92,7 +94,8 @@ int main() {
         mysql_close(conn);
         
         cout << "Attente de 20 minutes avant la prochaine vérification..." << endl;
-        sleep(1200);
+        // sleep(1200);
+        sleep(15);
     }
 
     return 0;
