@@ -1,7 +1,25 @@
 {
-    // Utilisez IntelliSense pour en savoir plus sur les attributs possibles.
-    // Pointez pour afficher la description des attributs existants.
-    // Pour plus d'informations, visitez : https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
-    "configurations": []
+    "configurations": [
+        {
+            "name": "Déboguer main.cpp",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/c++/src/${fileBasenameNoExtension}", // Exécutable généré
+            "args": [], // Ajoutez ici les arguments nécessaires pour votre programme
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}", // Répertoire de travail
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb", // Utilisation de LLDB pour macOS
+            "setupCommands": [
+                {
+                    "description": "Activer l'impression des chaînes dans LLDB",
+                    "text": "settings set target.run-args",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: clang générer le fichier actif" // Tâche de compilation
+        }
+    ]
 }

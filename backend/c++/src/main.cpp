@@ -1,102 +1,91 @@
 #include <iostream>
-#include "/Applications/MAMP/Library/bin/mysql80/include/mysql.h"
+#include <string>
+#include <sstream>
+#include <ctime>
+#include <unistd.h> // sleep()
+#include <cstdlib>
 #include <curl/curl.h>
-#include <unistd.h>  // Pour sleep()
+#include "include/nlohmann/json.hpp"
 
+using json = nlohmann::json;
 using namespace std;
 
-const char* HOST = "localhost";
-const char* USER = "root";
-const char* PASSWORD = "root";
-const char* DATABASE = "pump_data";
+const string url = "http://projetpompe.chez.com/etat_pompe.php";
 
-// Fonction pour vérifier si la pompe tourne depuis plus de 10 minutes
-bool pumpRunningTooLong(MYSQL* conn) {
-    MYSQL_RES* res;
-    MYSQL_ROW row;
-
-    const char* query = "SELECT TIMESTAMPDIFF(MINUTE, MIN(timestamp), NOW()) AS runtime "
-                        "FROM measurements WHERE pump_status = 1";
-
-    if (mysql_query(conn, query)) {
-        cerr << "Erreur SQL : " << mysql_error(conn) << endl;
-        return false;
-    }
-
-    res = mysql_store_result(conn);
-    if (!res) {
-        cerr << "Erreur récupération résultat SQL : " << mysql_error(conn) << endl;
-        return false;
-    }
-
-    row = mysql_fetch_row(res);
-    if (row && row[0]) {
-        try {
-            int runtime = stoi(row[0]);
-            mysql_free_result(res);
-            return runtime > 10;  // Retourne vrai si la pompe tourne depuis plus de 10 minutes
-        } catch (const exception& e) {
-            cerr << "Erreur conversion runtime : " << e.what() << endl;
-        }
-    }
-
-    mysql_free_result(res);
-    return false;
+// Fonction de callback pour curl
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, string* output) {
+    size_t totalSize = size * nmemb;
+    output->append((char*)contents, totalSize);
+    return totalSize;
 }
 
-// Fonction pour envoyer un mail d'alarme
-void sendAlarmEmail() {
-    CURL* curl = curl_easy_init();
+// Fonction pour obtenir le JSON depuis l'URL
+json getJsonFromUrl(const string& url) {
+    CURL* curl;
+    CURLcode res;
+    string response;
+
+    curl = curl_easy_init();
     if (curl) {
-        const char* emailData = "Subject: Alerte Pompe\n\nLa pompe tourne depuis plus de 10 minutes.";
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 
-        curl_easy_setopt(curl, CURLOPT_URL, "smtp://smtp.gmail.com:465");
-        curl_easy_setopt(curl, CURLOPT_MAIL_FROM, "projetpompehydraulique@gmail.com");
-        
-        struct curl_slist* recipients = nullptr;
-        curl_easy_setopt(curl, CURLOPT_USERNAME, "projetpompehydraulique@gmail.com");
-        curl_easy_setopt(curl, CURLOPT_PASSWORD, "dhcbbyzgwqmxdiqv");
-        recipients = curl_slist_append(recipients, "thibaud.lauber67000@gmail.com");
-        curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, emailData);
-        curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);  // Sécurisation si nécessaire
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            cerr << "Erreur curl : " << curl_easy_strerror(res) << endl;
+            curl_easy_cleanup(curl);
+            return json();  // Renvoie un JSON vide
+        }
 
-        CURLcode res = curl_easy_perform(curl);
-        if (res != CURLE_OK)
-            cerr << "Erreur d'envoi de mail : " << curl_easy_strerror(res) << endl;
-        else
-            cout << "E-mail d'alarme envoyé avec succès !" << endl;
-
-        curl_slist_free_all(recipients);
         curl_easy_cleanup(curl);
+    } else {
+        cerr << "Erreur : échec d'initialisation de curl.\n";
+        return json();
+    }
+
+    try {
+        return json::parse(response);
+    } catch (...) {
+        cerr << "Erreur de parsing JSON.\n";
+        return json();
+    }
+}
+
+void verifierEtatPompe() {
+    json data = getJsonFromUrl(url);
+
+    if (data.is_null() || data.contains("error")) {
+        cerr << "Erreur ou pas de données récupérées depuis le serveur.\n";
+	cerr << "Contenu reçu : " << data.dump() << endl;
+        return;
+    }
+
+    string timestampStr = data["timestamp"];
+    int pump_status = stoi(data["pump_status"].get<string>());
+
+    struct tm tm{};
+    strptime(timestampStr.c_str(), "%Y-%m-%d %H:%M:%S", &tm);
+    time_t dernierTimestamp = mktime(&tm);
+    time_t maintenant = time(nullptr);
+
+    double ecartMinutes = difftime(maintenant, dernierTimestamp) / 60.0;
+
+    cout << "[INFO] Pompe active ? " << pump_status << ", Dernier timestamp : " << timestampStr << ", Écart : " << ecartMinutes << " min\n";
+
+    if (pump_status == 1 && ecartMinutes >= 10.0) {
+        cout << "[ALERTE] Pompe active depuis plus de 10 minutes ! Envoi d'un mail.\n";
+        system("echo 'La pompe est en marche depuis plus de 10 minutes.' | mail -s 'Alerte pompe' thibaud.lauber67000@gmail.com");
+    } else {
+        cout << "[OK] Pompe inactive ou active depuis moins de 10 minutes.\n";
     }
 }
 
 int main() {
-    while (true) { 
-        MYSQL* conn = mysql_init(nullptr);
-        if (!conn) {
-            cerr << "Erreur d'initialisation MySQL" << endl;
-            return 1;
-        }
-
-        if (!mysql_real_connect(conn, HOST, USER, PASSWORD, DATABASE, 0, nullptr, 0)) {
-            cerr << "Erreur de connexion MySQL : " << mysql_error(conn) << endl;
-            return 1;
-        }
-
-        if (pumpRunningTooLong(conn)) {
-            sendAlarmEmail();
-        } else {
-            cout << "Pompe OK. Aucune alerte nécessaire." << endl;
-        }
-
-        mysql_close(conn);
-        
-        cout << "Attente de 20 minutes avant la prochaine vérification..." << endl;
-        // sleep(1200);
-        sleep(15);
+    while (true) {
+        verifierEtatPompe();
+        sleep(20 * 60); // Attendre 20 minutes
     }
-
     return 0;
 }
