@@ -1,64 +1,49 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <ctime>
-#include <unistd.h> // sleep()
+#include <unistd.h>
 #include <cstdlib>
-#include <curl/curl.h>
-#include "include/nlohmann/json.hpp"
+#include "include/json.hpp" 
 
 using json = nlohmann::json;
 using namespace std;
 
 const string url = "http://projetpompe.chez.com/etat_pompe.php";
+const string fichierTemp = "/tmp/etat_pompe.json";
 
-// Fonction de callback pour curl
-size_t WriteCallback(void* contents, size_t size, size_t nmemb, string* output) {
-    size_t totalSize = size * nmemb;
-    output->append((char*)contents, totalSize);
-    return totalSize;
-}
-
-// Fonction pour obtenir le JSON depuis l'URL
-json getJsonFromUrl(const string& url) {
-    CURL* curl;
-    CURLcode res;
-    string response;
-
-    curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK) {
-            cerr << "Erreur curl : " << curl_easy_strerror(res) << endl;
-            curl_easy_cleanup(curl);
-            return json();  // Renvoie un JSON vide
-        }
-
-        curl_easy_cleanup(curl);
-    } else {
-        cerr << "Erreur : échec d'initialisation de curl.\n";
+json getJsonFromFile(const string& filepath) {
+    ifstream in(filepath);
+    if (!in) {
+        cerr << "Erreur : impossible d’ouvrir le fichier JSON." << endl;
         return json();
     }
 
     try {
-        return json::parse(response);
+        json data;
+        in >> data;
+        return data;
     } catch (...) {
-        cerr << "Erreur de parsing JSON.\n";
+        cerr << "Erreur de parsing JSON." << endl;
         return json();
     }
 }
 
 void verifierEtatPompe() {
-    json data = getJsonFromUrl(url);
+    // Récupérer les données avec wget
+    string commande = "wget -q -O " + fichierTemp + " " + url;
+    int resultat = system(commande.c_str());
 
+    if (resultat != 0) {
+        cerr << "Erreur : échec de récupération avec wget.\n";
+        return;
+    }
+
+    json data = getJsonFromFile(fichierTemp);
     if (data.is_null() || data.contains("error")) {
-        cerr << "Erreur ou pas de données récupérées depuis le serveur.\n";
-	cerr << "Contenu reçu : " << data.dump() << endl;
+        cerr << "Erreur ou pas de données récupérées.\n";
+        cerr << "Contenu reçu : " << data.dump() << endl;
         return;
     }
 
@@ -72,11 +57,13 @@ void verifierEtatPompe() {
 
     double ecartMinutes = difftime(maintenant, dernierTimestamp) / 60.0;
 
-    cout << "[INFO] Pompe active ? " << pump_status << ", Dernier timestamp : " << timestampStr << ", Écart : " << ecartMinutes << " min\n";
+    cout << "[INFO] Pompe active ? " << pump_status
+         << ", Dernier timestamp : " << timestampStr
+         << ", Écart : " << ecartMinutes << " min\n";
 
     if (pump_status == 1 && ecartMinutes >= 10.0) {
-        cout << "[ALERTE] Pompe active depuis plus de 10 minutes ! Envoi d'un mail.\n";
-        system("echo 'La pompe est en marche depuis plus de 10 minutes.' | mail -s 'Alerte pompe' thibaud.lauber67000@gmail.com");
+        cout << "[ALERTE] Pompe active depuis plus de 10 minutes ! Envoi du mail via PHP.\n";
+        system("wget -q -O /dev/null http://projetpompe.chez.com/envoyer_alerte.php");
     } else {
         cout << "[OK] Pompe inactive ou active depuis moins de 10 minutes.\n";
     }
