@@ -81,7 +81,8 @@ void verifierEtatPompe() {
 
     if (pump_status == 1 && ecartMinutes >= 10.0) {
         cout << "[ALERTE] Pompe active depuis plus de 10 minutes ! Envoi du mail via PHP.\n";
-        system("wget -q -O /dev/null http://projetpompe.chez.com/envoyer_alerte.php");
+        //system("wget -q -O /dev/null http://projetpompe.chez.com/envoyer_alerte.php");
+        system("echo 'La pompe est active depuis plus de 10 minutes.' | msmtp -s 'Alerte Pompe' thibaud.lauber67000@gmail.com");
     } else {
         cout << "[OK] Pompe inactive ou active depuis moins de 10 minutes.\n";
     }
@@ -90,7 +91,7 @@ void verifierEtatPompe() {
 int main() {
     while (true) {
         verifierEtatPompe();
-        sleep(20 * 60); // Attendre 20 minutes
+        sleep(20 * 60);
     }
     return 0;
 }
