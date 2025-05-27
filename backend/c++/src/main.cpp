@@ -5,7 +5,7 @@
 #include <ctime>
 #include <unistd.h>
 #include <cstdlib>
-#include "include/json.hpp" 
+#include "include/nlohmann/json.hpp" 
 
 using json = nlohmann::json;
 using namespace std;
@@ -48,7 +48,25 @@ void verifierEtatPompe() {
     }
 
     string timestampStr = data["timestamp"];
-    int pump_status = stoi(data["pump_status"].get<string>());
+    if (!data.contains("pump_status") || data["pump_status"].is_null()) {
+        cerr << "Erreur : pump_status manquant ou null." << endl;
+        return;
+    }
+
+    int pump_status = 0;
+    try {
+        if (data["pump_status"].is_string()) {
+            pump_status = stoi(data["pump_status"].get<string>());
+        } else if (data["pump_status"].is_number_integer()) {
+            pump_status = data["pump_status"];
+        } else {
+            cerr << "Erreur : pump_status invalide." << endl;
+            return;
+        }
+    } catch (...) {
+        cerr << "Erreur lors de la conversion de pump_status." << endl;
+        return;
+    }
 
     struct tm tm{};
     strptime(timestampStr.c_str(), "%Y-%m-%d %H:%M:%S", &tm);

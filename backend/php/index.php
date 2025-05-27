@@ -111,42 +111,72 @@
     // Initialisation du graphique
     const ctx = document.getElementById('chart').getContext('2d');
     const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Température (°C)',
-                    data: temperatureData,
-                    borderColor: 'red',
-                    backgroundColor: 'rgba(255, 0, 0, 0.2)',
-                    fill: true
-                },
-                {
-                    label: 'Humidité (%)',
-                    data: humidityData,
-                    borderColor: 'blue',
-                    backgroundColor: 'rgba(0, 0, 255, 0.2)',
-                    fill: true
-                },
-                {
-                    label: 'Vitesse (RPM)',
-                    data: speedData,
-                    borderColor: 'green',
-                    backgroundColor: 'rgba(0, 255, 0, 0.2)',
-                    fill: true
-                }
-            ]
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Température (°C)',
+                data: temperatureData,
+                borderColor: 'red',
+                backgroundColor: 'rgba(255, 0, 0, 0.2)',
+                fill: true,
+                yAxisID: 'yTemperature'
+            },
+            {
+                label: 'Humidité (%)',
+                data: humidityData,
+                borderColor: 'blue',
+                backgroundColor: 'rgba(0, 0, 255, 0.2)',
+                fill: true,
+                yAxisID: 'yHumidity'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        interaction: {
+            mode: 'index',
+            intersect: false
         },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'top'
+        plugins: {
+            legend: {
+                position: 'top'
+            }
+        },
+        scales: {
+            yTemperature: {
+                type: 'linear',
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Température (°C)'
+                },
+                ticks: {
+                    callback: function(value) {
+                        return value + ' °C';
+                    }
+                }
+            },
+            yHumidity: {
+                type: 'linear',
+                position: 'right',
+                title: {
+                    display: true,
+                    text: 'Humidité (%)'
+                },
+                grid: {
+                    drawOnChartArea: false
+                },
+                ticks: {
+                    callback: function(value) {
+                        return value + ' %';
+                    }
                 }
             }
         }
-    });
+    }
+});
 </script>
 
 <!-- Bootstrap JS -->

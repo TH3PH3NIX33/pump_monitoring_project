@@ -15,6 +15,7 @@ try {
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
+        $row['pump_status'] = is_null($row['pump_status']) ? "0" : strval($row['pump_status']);
         echo json_encode($row);
     } else {
         echo json_encode(array("error" => "Aucune donnée"));
