@@ -1,0 +1,20 @@
+#!/bin/bash
+
+API_KEY="ta_clé_api"
+SECRET_KEY="ta_clé_secrète"
+
+curl -s \
+  -X POST \
+  https://api.mailjet.com/v3.1/send \
+  -u "$5371567d6a415e25138d55931acf23d0:$edd74cc8731f1642ddfbef585903f6c8" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "Messages":[
+      {
+        "From":{"Email":"projetpompehydraulique@gmail.com"},
+        "To":[{"Email":"thibaud.lauber67000@gmail.com"}],
+        "Subject":"Alerte Pompe",
+        "TextPart":"La pompe est active depuis plus de 10 minutes."
+      }
+    ]
+  }'
